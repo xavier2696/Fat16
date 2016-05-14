@@ -14,6 +14,7 @@ char cluster[4096];
 void crearDirectorioRoot(char, char*, int);
 void CrearArchivoRoot(char, char*, char*);
 void crearParticionFat();
+void ls();
 
 struct Directory{
 	char primer_caracter;
@@ -31,6 +32,7 @@ int main(){
 	cout<<"1) Crear archivo particion"<<endl;
 	cout<<"2) Agregar directorio a particion ya creada"<<endl;
 	cout<<"3) Agregar archivo a particion ya creado(archivo debe estar en el mismo directorio)"<<endl;
+	cout<<"4) ls"<<endl;
 	int opcion;
 	cout<<"Opcion: "; 
 	cin>>opcion;
@@ -57,10 +59,31 @@ int main(){
 			cin>> archivo;
 			CrearArchivoRoot(letra, nombre, archivo);
 			break;
+		case 4:
+			ls();
+			break;
 		default:
 			break;
 	}
 	return 0;
+}
+
+void ls(){
+	char line[32];
+	char nombre[11];
+	ifstream fentrada;
+	fentrada.open("particionfat32",ios::binary|ios::out|ios::in);
+			
+	for(int i = 0; i<65536; i++){
+		 fentrada.read(line, 32);
+		 if(line[0]!=0){
+		 	memcpy( nombre, line + 1, 10 );
+		 	cout<<"Name: "<<nombre;
+		 	cout<<" ";
+		 	cout<<"Tipo: "<<line[11]<<endl;
+		 }
+	}
+	fentrada.close();
 }
 
 void crearParticionFat(){	
