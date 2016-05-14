@@ -28,7 +28,9 @@ struct Directory{
 
 
 int main(){
-	
+	cout<<"1) Crear archivo particion"<<endl;
+	cout<<"2) Agregar directorio a particion ya creada"<<endl;
+	cout<<"3) Agregar archivo a particion ya creado(archivo debe estar en el mismo directorio)"<<endl;
 	int opcion;
 	cout<<"Opcion: "; 
 	cin>>opcion;
