@@ -5,6 +5,7 @@
 #include <string.h>
 #include <vector>
 #include <stdlib.h>
+#include <math.h>   
 
 using namespace std;
 
@@ -19,15 +20,16 @@ struct Directory{
 };
 
 struct Cluster{
-	char espacio[4096]; //Pueden ser 128 directorios o un archivo
+	char espacio[4096]; //Pueden ser 128 directorios o bytes de un archivo
 };
 
 unsigned short fatTable[65536];
 Directory root[512];
 Cluster Data[65468];
 
-void crearDirectorioRoot(char, char*, int);
-void CrearArchivoRoot(char, char*, char*);
+void crearDirectorioRoot(char, char*);
+void CatredireccionamientoRoot(char, char*);
+void CatRoot(char *);
 void crearParticionFat();
 void ls();
 void escribirFatFile();
@@ -36,17 +38,19 @@ void getInfoFile();
 
 
 int main(){
-	getInfoFile(); // copia la informacion del archivo binario en las diferentes estructuras.
+
 	while(true){
 		cout<<"1) Formatear particion"<<endl;
-		cout<<"2) Agregar directorio a particion ya creada"<<endl;
-		cout<<"3) Agregar archivo a particion ya creado(archivo debe estar en el mismo directorio)"<<endl;
-		cout<<"4) ls"<<endl;
-		cout<<"5) Exit"<<endl;
+		cout<<"2) Usar particion existente ---USAR ESTA PARA LEVANTAR ESTRUCTURA EXISTENTE---"<<endl;
+		cout<<"3) mkdir en root"<<endl;
+		cout<<"4) Cat > file en root  (ingrese exit para terminar de escribir)"<<endl;
+		cout<<"5) ls en root"<<endl;
+		cout<<"6) cat en root"<<endl;
+		cout<<"7) Exit"<<endl;
 		int opcion;
 		cout<<"Opcion: "; 
 		cin>>opcion;
-		if(opcion==5){
+		if(opcion==7){
 			escribirFatFile();
 			break;
 		}
@@ -54,33 +58,68 @@ int main(){
 			case 1:
 				crearParticionFat();
 				break;
-			case 2:	
+			case 2:
+				getInfoFile(); // copia la informacion del archivo binario en las diferentes estructuras.
+				break;
+			case 3:	
 				char letra;	
 				cout<<"primera letra: ";
 				cin>>letra;
 				char nombre[10];	
 				cout<<"nombre_archivo: ";
 				cin>>nombre;
-				crearDirectorioRoot(letra,nombre,0);
+				crearDirectorioRoot(letra,nombre);
 				break;
-			case 3:
+			case 4:
 				cout<<"primera letra: ";
 				cin>>letra;	
 				cout<<"nombre_archivo: ";
 				cin>>nombre;
-				char archivo[10];
-				cout<<"nombre archivo a copiar: ";
-				cin>> archivo;
-				CrearArchivoRoot(letra, nombre, archivo);
+				CatredireccionamientoRoot(letra, nombre);
 				break;
-			case 4:
+			case 5:
 				ls();
+				break;
+			case 6:
+				cout<<"nombre_archivo: ";
+				cin>>nombre;
+				CatRoot(nombre);
 				break;
 			default:
 				break;
 		}
 	}
 	return 0;
+}
+
+void CatRoot(char * nombre){
+	bool seencuentra = false;
+	for(int rot =0; rot<512; rot++){
+		 if(root[rot].primer_caracter!=0 && root[rot].atributos=='a'){
+		 	if(strcmp(root[rot].nombre_archivo, nombre)==0){
+		 		int nclusters = ceil(root[rot].tamano/4096);
+		 		string line ="";
+				if(nclusters==0)
+					nclusters++;
+		 		int contador=0;
+		 		for(int clus=0 ;clus<nclusters;clus++){
+					
+					for(int a=0 ;a<4096;a++){
+						if(Data[root[rot].direccion-69].espacio[a]!=NULL)
+							line+= Data[root[rot].direccion-69].espacio[a];
+					}
+				}
+				cout<<line<<endl;
+
+			}
+		 		if(seencuentra = true);
+		 			break;
+		}
+		
+	}
+	if(!seencuentra){
+		cout<<"El archivo no existe"<<endl;
+	}
 }
 
 void ls(){
@@ -104,15 +143,15 @@ void crearParticionFat(){
   	for(int i = 0; i<512; i++){
   		outfile.write((char*)&root, 32);
   	}
-  	/*
+  	
   	for(int i = 0; i<65468; i++){
   		outfile.write((char*)&Data[i].espacio, 4096);
   	}
-  	*/
+  
   	outfile.close();
 }
 
-void crearDirectorioRoot(char primera_letra, char *nombre ,int tamano){
+void crearDirectorioRoot(char primera_letra, char *nombre ){ // CREAR DIRECTORIO
 	char tipo = 'd';
 	time_t now = time(0);
 	char* dt = ctime(&now);
@@ -126,28 +165,176 @@ void crearDirectorioRoot(char primera_letra, char *nombre ,int tamano){
 			cout<<"hay algo"<<endl;
 		}else{
 			cout<<"vacio"<<endl;
-			root[rot].primer_caracter = primera_letra;
-			memcpy (root[rot].nombre_archivo,nombre,10);
-			//directorio.nombre_archivo = nombre_archivo;
-			root[rot].atributos = tipo;
-			memcpy (root[rot].fecha, dt, 8);
-			//directorio.fecha = fecha;
 			short int cluesterdireccion; // buscar cluster disponible en la fattable
+			bool hayespaciofattable;
 			for(int clus=69;clus<65536;clus++){
-				cout<<fatTable[clus]<<endl;
 				if(fatTable[clus]==0 ){
 					cluesterdireccion =clus;
 					fatTable[clus]= 63; // el cluster 63 es parte de la fattable(indica entonces que no apunta a otro cluster)
+					hayespaciofattable= true;
 					break;
 				}
 			}
-			root[rot].direccion = cluesterdireccion;
-			root[rot].tamano = tamano;
+			if(hayespaciofattable){
+				root[rot].primer_caracter = primera_letra;
+				memcpy (root[rot].nombre_archivo,nombre,10);
+				root[rot].atributos = tipo;
+				memcpy (root[rot].fecha, dt, 8);
+				root[rot].direccion = cluesterdireccion;
+				root[rot].tamano = 4096;
+			}else{
+				cout<<"El disco esta lleno"<<endl;
+			}
 			break;
 		}
 	}
 }
 
+void CatredireccionamientoRoot(char primera_letra, char *nombre ){ // cREAR UN ARCHIVOO
+	char tipo = 'a';
+	time_t now = time(0);
+	char* dt = ctime(&now);
+	char fecha[8];
+	memcpy ( fecha, dt, 8);
+	char nombre_archivo[10];
+	memcpy (nombre_archivo,nombre,10);
+	char reservado[6];
+	for(int rot =0; rot<512; rot++){ //ahora revisa en la region root
+		if(root[rot].primer_caracter != 0){
+			cout<<"hay algo"<<endl;
+		}else{
+			cout<<"vacio"<<endl;
+			string line;
+			string lineas[255]; //longitud al chilaso
+			cin.ignore();
+			int contador=0;
+			int nbyteslineas=0;
+			int nclusters =0;
+			while(line!="exit\n"){
+  				getline (cin,line);
+  				line += '\n';
+  				lineas[contador] = line;
+  				contador++;
+			}
+			lineas[contador-1] = "final"; /// indicando que es la ultima linea, no la incluye
+			contador=0;
+			while(lineas[contador]!="final" && contador<255){
+				nbyteslineas += lineas[contador].size();
+  				contador++;
+			}
+
+			nclusters = ceil(nbyteslineas/4096);
+			if(nclusters==0)
+				nclusters++;
+			short nclustersencontrados[nclusters];
+			short int cluesterdireccion; // buscar cluster disponible en la fattable
+			bool hayespaciofattable;
+			contador =0;
+			for(int clus=69;clus<65536;clus++){
+				if(fatTable[clus]==0 ){
+					nclustersencontrados[contador] =clus;
+					contador++;
+				}
+				if(contador==nclusters){
+					hayespaciofattable =true;
+					break;
+				}
+
+			}
+			if(hayespaciofattable){
+				cluesterdireccion = nclustersencontrados[0];
+				root[rot].primer_caracter = primera_letra;
+				memcpy (root[rot].nombre_archivo,nombre,10);
+				root[rot].atributos = tipo;
+				memcpy (root[rot].fecha, dt, 8);
+				root[rot].direccion = cluesterdireccion;
+				root[rot].tamano= nbyteslineas;
+				
+				for(int asig =0; asig< nclusters-1;asig++){ // lista de los clusters
+					fatTable[nclustersencontrados[asig]] = nclustersencontrados[asig+1];
+				}
+				fatTable[nclustersencontrados[nclusters-1]]=63; // el cluster 63 es parte de la fattable(indica entonces que no apunta a otro cluster)
+
+				if(nbyteslineas>0){
+					char cadenadivida[nbyteslineas];
+					contador=0;
+					for(int l =0; l<sizeof(lineas); l++){ // dividir los bytes de las cadenas y meterlas en un array de chars
+						if(lineas[l]=="final")
+							break;
+						for(int a =0; a<lineas[l].size(); a++){
+							cadenadivida[contador] = lineas[l][a];
+							contador++;
+						}
+					}
+				
+					contador =0;
+					for(int asig =0; asig< nclusters;asig++){ // Ingresar los bytes del archivo... si los hay
+						for(int w=0;w<4096;w++){
+							if((w+contador-1)==nbyteslineas)
+								break;
+							Data[nclustersencontrados[asig]-69].espacio[w] = cadenadivida[w+contador]; //-69 porque Data solo tiene los cluster de data
+						}
+						contador+=4096;
+					}
+				}
+
+
+			}else{
+				cout<<"El disco esta lleno"<<endl;
+			}
+			
+			break;
+		}
+	}
+}
+
+void getInfoFile(){
+
+
+	ifstream infile;
+	infile.open("particionfat16", ios::binary | ios::in);
+	infile.seekg(131072);
+	for(int i = 0; i<65536; i++){
+		char temp[1];
+		infile.read (temp, 1);
+		char temp2[1];
+		infile.read (temp2, 1);
+			fatTable[i]= (unsigned short)(temp[0]+temp2[0]);
+	}
+  	
+  	for(int i = 0; i<512; i++){
+  		infile.read((char*)&root[i], 32);
+  	}
+  
+  	for(int i = 0; i<65468; i++){
+  		infile.read((char*)&Data[i], 4096);
+  	}
+  	
+  	infile.close();
+
+}
+
+void escribirFatFile(){
+	ofstream outfile;
+  	outfile.open("particionfat16", ios::binary | ios::out);
+  	outfile.write((char*)&fatTable, sizeof(short int)*65536);
+  	outfile.write((char*)&fatTable, sizeof(short int)*65536);
+  	
+  	for(int i = 0; i<512; i++){
+  		outfile.write((char*)&root[i], 32);
+  	}
+  	
+  	for(int i = 0; i<65468; i++){
+  		outfile.write((char*)&Data[i], 4096);
+  	}
+  	
+  	
+  	outfile.close();
+  	
+
+}
+
+/* ESTE COPIA UN ARCHIVO--- por cualquier cosa
 void CrearArchivoRoot(char primera_letra, char *nombre ,char* nombre_archivo_a_copiar){
 	int offset = 131073;
 	char tipo = 'a';
@@ -243,53 +430,5 @@ void CrearArchivoRoot(char primera_letra, char *nombre ,char* nombre_archivo_a_c
 	if(direccion>278528)
 		infile.close();
 }
-
-void getInfoFile(){
-
-
-	ifstream infile;
-	infile.open("particionfat16", ios::binary | ios::in);
-	infile.seekg(131072);
-	for(int i = 0; i<65536; i++){
-		char temp[1];
-		infile.read (temp, 1);
-		char temp2[1];
-		infile.read (temp2, 1);
-			fatTable[i]= (unsigned short)(temp[0]+temp2[0]);
-
-	}
-  	
-  	for(int i = 0; i<512; i++){
-  		infile.read((char*)&root[i], 32);
-  	}
-	
-	/*
-  	for(int i = 0; i<65468; i++){
-  		infile.read((char*)&Data[i], 4096);
-  	}
-  	*/
-  	infile.close();
-
-}
-
-void escribirFatFile(){
-	ofstream outfile;
-  	outfile.open("particionfat16", ios::binary | ios::out);
-  	outfile.write((char*)&fatTable, sizeof(short int)*65536);
-  	outfile.write((char*)&fatTable, sizeof(short int)*65536);
-  	
-  	for(int i = 0; i<512; i++){
-  		outfile.write((char*)&root[i], 32);
-  	}
-  	
-  		/*
-  	for(int i = 0; i<65468; i++){
-  		outfile.write((char*)&Data[i], 4096);
-  	}
-  	*/
-  	
-  	outfile.close();
-  	
-
-}
+*/
 
