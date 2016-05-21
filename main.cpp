@@ -9,6 +9,9 @@
 
 using namespace std;
 
+unsigned short clusterDirectorioActual = 65467;
+bool actualEsRoot = true;
+
 struct Directory{
 	char primer_caracter;
 	char nombre_archivo[10]; 
@@ -27,7 +30,7 @@ unsigned short fatTable[65536];
 Directory root[512];
 Cluster Data[65468];
 
-void crearDirectorioRoot(char, char*);
+void crearDirectorio(char, char*);
 void CatredireccionamientoRoot(char, char*);
 void CatRoot(char *);
 void crearParticionFat();
@@ -35,18 +38,19 @@ void ls();
 void escribirFatFile();
 void getInfoFile();
 
-
+void cambiarDirectorio(char*);
 
 int main(){
 
 	while(true){
 		cout<<"1) Formatear particion"<<endl;
 		cout<<"2) Usar particion existente ---USAR ESTA PARA LEVANTAR ESTRUCTURA EXISTENTE---"<<endl;
-		cout<<"3) mkdir en root"<<endl;
+		cout<<"3) mkdir"<<endl;
 		cout<<"4) Cat > file en root  (ingrese exit para terminar de escribir)"<<endl;
-		cout<<"5) ls en root"<<endl;
+		cout<<"5) ls"<<endl;
 		cout<<"6) cat en root"<<endl;
 		cout<<"7) Exit"<<endl;
+		cout<<"8) cd"<<endl;
 		int opcion;
 		cout<<"Opcion: "; 
 		cin>>opcion;
@@ -54,6 +58,7 @@ int main(){
 			escribirFatFile();
 			break;
 		}
+		char nombre[10];
 		switch(opcion){
 			case 1:
 				crearParticionFat();
@@ -61,21 +66,15 @@ int main(){
 			case 2:
 				getInfoFile(); // copia la informacion del archivo binario en las diferentes estructuras.
 				break;
-			case 3:	
-				char letra;	
-				cout<<"primera letra: ";
-				cin>>letra;
-				char nombre[10];	
-				cout<<"nombre_archivo: ";
+			case 3:						
+				cout<<"nombre carpeta: ";
 				cin>>nombre;
-				crearDirectorioRoot(letra,nombre);
+				crearDirectorio(nombre[0],nombre);
 				break;
 			case 4:
-				cout<<"primera letra: ";
-				cin>>letra;	
-				cout<<"nombre_archivo: ";
+				cout<<"nombre archivo: ";
 				cin>>nombre;
-				CatredireccionamientoRoot(letra, nombre);
+				CatredireccionamientoRoot(nombre[0], nombre);
 				break;
 			case 5:
 				ls();
@@ -85,9 +84,16 @@ int main(){
 				cin>>nombre;
 				CatRoot(nombre);
 				break;
+			case 8:
+				cout<<"nombre subdirectorio: ";
+				cin>>nombre;
+				cambiarDirectorio(nombre);
+				break;
 			default:
 				break;
 		}
+		for(int i=0;i<10;i++)
+			nombre[i] = '\0';
 	}
 	return 0;
 }
@@ -123,13 +129,24 @@ void CatRoot(char * nombre){
 }
 
 void ls(){
-	
-	for(int rot =0; rot<512; rot++){
-		 if(root[rot].primer_caracter!=0){
-		 	cout<<"Name: "<<root[rot].nombre_archivo;
-		 	cout<<" ";
-		 	cout<<"Tipo: "<<root[rot].atributos<<endl;
-		 }
+	if(actualEsRoot){
+		for(int rot =0; rot<512; rot++){
+			 if(root[rot].primer_caracter!=0){
+			 	cout<<"Nombre: "<<root[rot].nombre_archivo;
+			 	cout<<" ";
+			 	cout<<"Tipo: "<<root[rot].atributos<<endl;
+			 }
+		}
+	}else{
+		for(int i =0;i<128*32; i+=32){
+		if(Data[clusterDirectorioActual].espacio[i] != 0){
+			cout<<"Nombre: ";
+			for(int j = 1; j<11;j++)
+				cout<<Data[clusterDirectorioActual].espacio[i+j];			
+			cout<<" Tipo: "<<Data[clusterDirectorioActual].espacio[i+11];
+			cout<<endl;
+		}
+		}
 	}
 }
 
@@ -151,44 +168,144 @@ void crearParticionFat(){
   	outfile.close();
 }
 
-void crearDirectorioRoot(char primera_letra, char *nombre ){ // CREAR DIRECTORIO
-	char tipo = 'd';
-	time_t now = time(0);
-	char* dt = ctime(&now);
-	char fecha[8];
-	memcpy ( fecha, dt, 8);
-	char nombre_archivo[10];
-	memcpy (nombre_archivo,nombre,10);
-	char reservado[6];
-	for(int rot =0; rot<512; rot++){ //ahora revisa en la region root
-		if(root[rot].primer_caracter != 0){
-			cout<<"hay algo"<<endl;
-		}else{
-			cout<<"vacio"<<endl;
-			short int cluesterdireccion; // buscar cluster disponible en la fattable
-			bool hayespaciofattable;
-			for(int clus=69;clus<65536;clus++){
-				if(fatTable[clus]==0 ){
-					cluesterdireccion =clus;
-					fatTable[clus]= 63; // el cluster 63 es parte de la fattable(indica entonces que no apunta a otro cluster)
-					hayespaciofattable= true;
-					break;
-				}
-			}
-			if(hayespaciofattable){
-				root[rot].primer_caracter = primera_letra;
-				memcpy (root[rot].nombre_archivo,nombre,10);
-				root[rot].atributos = tipo;
-				memcpy (root[rot].fecha, dt, 8);
-				root[rot].direccion = cluesterdireccion;
-				root[rot].tamano = 4096;
+void crearDirectorio(char primera_letra, char *nombre ){ // CREAR DIRECTORIO
+	if(actualEsRoot){
+		char tipo = 'd';
+		time_t now = time(0);
+		char* dt = ctime(&now);
+		char fecha[8];
+		memcpy ( fecha, dt, 8);
+		char nombre_archivo[10];
+		memcpy (nombre_archivo,nombre,10);
+		char reservado[6];
+		for(int rot =0; rot<512; rot++){ //ahora revisa en la region root
+			if(root[rot].primer_caracter != 0){
+				cout<<"hay algo"<<endl;
 			}else{
-				cout<<"El disco esta lleno"<<endl;
+				cout<<"vacio"<<endl;
+				short int cluesterdireccion; // buscar cluster disponible en la fattable
+				bool hayespaciofattable;
+				for(int clus=69;clus<65536;clus++){
+					if(fatTable[clus]==0 ){
+						cluesterdireccion =clus;
+						fatTable[clus]= 63; // el cluster 63 es parte de la fattable(indica entonces que no apunta a otro cluster)
+						hayespaciofattable= true;
+						break;
+					}
+				}
+				if(hayespaciofattable){
+					root[rot].primer_caracter = primera_letra;
+					memcpy (root[rot].nombre_archivo,nombre,10);
+					root[rot].atributos = tipo;
+					memcpy (root[rot].fecha, dt, 8);
+					root[rot].direccion = cluesterdireccion;
+					root[rot].tamano = 4096;
+				}else{
+					cout<<"El disco esta lleno"<<endl;
+				}
+				break;
 			}
-			break;
+		}
+	}else{
+		char tipo = 'd';
+		time_t now = time(0);
+		char* dt = ctime(&now);
+		char fecha[8];
+		memcpy ( fecha, dt, 8);
+		char nombre_archivo[10];
+		memcpy (nombre_archivo,nombre,10);
+		char reservado[6];
+		for(int i=0;i<128*32; i+=32){
+			if(Data[clusterDirectorioActual].espacio[i] != 0){
+				cout<<"hay algo"<<endl;
+			}else{
+				cout<<"vacio"<<endl;
+				short int cluesterdireccion; // buscar cluster disponible en la fattable
+				bool hayespaciofattable;
+				for(int clus=69;clus<65536;clus++){
+					if(fatTable[clus]==0 ){
+						cluesterdireccion =clus;
+						fatTable[clus]= 63; // el cluster 63 es parte de la fattable(indica entonces que no apunta a otro cluster)
+						hayespaciofattable= true;
+						break;
+					}
+				}
+				if(hayespaciofattable){
+
+					Data[clusterDirectorioActual].espacio[i] = primera_letra;
+					for(int j =0;j<10;j++){
+						Data[clusterDirectorioActual].espacio[i+j+1] = nombre[j];
+					}				
+					Data[clusterDirectorioActual].espacio[i+11] = tipo;
+					for(int j=0;j<8;j++){
+						Data[clusterDirectorioActual].espacio[i+12+j] = fecha[j];
+					}
+					char direccionTemp[2];
+	    			*((unsigned short int *) direccionTemp) = cluesterdireccion;
+					/*char* direccionTemp = (char*)cluesterdireccion;
+					//memcpy (direccionTemp, (char*)cluesterdireccion, 2);*/
+					for(int j =0;j<2;j++){
+						Data[clusterDirectorioActual].espacio[i+20+j] = direccionTemp[j];
+					}
+					char tamanoTemp[4];
+	    			*((int *) tamanoTemp) = 4096;
+					/*char* tamanoTemp;
+					int tamano = 4096;
+					tamanoTemp = (char*)tamano;
+					//memcpy (tamanoTemp, (char*)tamano, 4);*/
+					for(int j =0;j<4;j++){
+						Data[clusterDirectorioActual].espacio[i+22+j] = tamanoTemp[j];
+					}
+				}else{
+					cout<<"El disco esta lleno"<<endl;
+				}
+				break;
+			}
 		}
 	}
 }
+
+
+void cambiarDirectorio(char * nombre){
+	int direccionAsignada = -1;
+	if(clusterDirectorioActual == 65467){//se encuentra en la root		
+		for(int rot =0; rot<512; rot++){
+		 if(root[rot].primer_caracter!=0){
+		 	char* name = root[rot].nombre_archivo;
+		 	if(strcmp(nombre,name)==0){
+		 		direccionAsignada = root[rot].direccion;
+		 		break;
+		 	}
+		 }
+		}
+	}else{
+		for(int i =0;i<128*32; i+=32){
+			if(Data[clusterDirectorioActual].espacio[i] != 0){
+				char name[10];
+				for(int j=0;j<10;j++){
+					name[j] = Data[clusterDirectorioActual].espacio[i+j+1];
+				}
+				//memcpy(name,(char*)Data[clusterDirectorioActual].espacio[i+1],10);
+				if(strcmp(name,nombre)==0){
+					char direccionTemp[2];
+					for(int j =0;j<2;j++){
+						direccionTemp[j] = Data[clusterDirectorioActual].espacio[i+j+20];
+					}
+					//memcpy(direccionTemp,(char*)Data[clusterDirectorioActual].espacio[i+20],2);
+					direccionAsignada = (int)*direccionTemp;
+		 			break;
+				}
+			}
+		}
+	}
+	if(direccionAsignada != -1){
+			clusterDirectorioActual = direccionAsignada;
+			actualEsRoot = false;
+	}else
+		cout<<"No existe esa subcarpeta"<<endl;
+	//cout<<"direccion actual: "<<clusterDirectorioActual<<endl;
+}
+
 
 void CatredireccionamientoRoot(char primera_letra, char *nombre ){ // cREAR UN ARCHIVOO
 	char tipo = 'a';
