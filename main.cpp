@@ -32,7 +32,7 @@ Cluster Data[65468];
 
 void crearDirectorio(char, char*);
 void CatredireccionamientoRoot(char, char*);
-void CatRoot(char *);
+void Cat(char *);
 void crearParticionFat();
 void ls();
 void escribirFatFile();
@@ -82,7 +82,7 @@ int main(){
 			case 6:
 				cout<<"nombre_archivo: ";
 				cin>>nombre;
-				CatRoot(nombre);
+				Cat(nombre);
 				break;
 			case 8:
 				cout<<"nombre subdirectorio: ";
@@ -98,7 +98,7 @@ int main(){
 	return 0;
 }
 
-void CatRoot(char * nombre){
+void Cat(char * nombre){
 	bool seencuentra = false;
 	if(actualEsRoot){
 		for(int rot =0; rot<512; rot++){
@@ -125,11 +125,14 @@ void CatRoot(char * nombre){
 			
 		}
 	}else{
-		/*
+		
 		for(int i =0; i<128; i++){
-			 if(root[rot].primer_caracter!=0 && root[rot].atributos=='a'){
-			 	if(strcmp(Data[clusterDirectorioActual-69].nombre_archivo, nombre)==0){
-			 		int nclusters = ceil(root[rot].tamano/4096);
+			 if(Data[clusterDirectorioActual-69].espacio[i*32]!=0 && 
+			 	Data[clusterDirectorioActual-69].espacio[(i*32)+11]=='a'){
+			 	char nom[10];
+			 	memcpy (nom, &Data[clusterDirectorioActual-69].espacio[(i*32)+1],10);
+			 	if(strcmp(nom, nombre)==0){
+			 		int nclusters = ceil(Data[clusterDirectorioActual-69].espacio[(i*32)+22]/4096);
 			 		string line ="";
 					if(nclusters==0)
 						nclusters++;
@@ -137,8 +140,8 @@ void CatRoot(char * nombre){
 			 		for(int clus=0 ;clus<nclusters;clus++){
 						
 						for(int a=0 ;a<4096;a++){
-							if(Data[root[rot].direccion-69].espacio[a]!=NULL)
-								line+= Data[root[rot].direccion-69].espacio[a];
+							if(Data[Data[clusterDirectorioActual-69].espacio[(i*32)+20]-69].espacio[a]!=NULL)
+								line+= Data[Data[clusterDirectorioActual-69].espacio[(i*32)+20]-69].espacio[a];
 						}
 					}
 					cout<<line<<endl;
@@ -149,7 +152,7 @@ void CatRoot(char * nombre){
 			}
 			
 		}
-		*/
+		
 	}
 	if(!seencuentra){
 		cout<<"El archivo no existe"<<endl;
@@ -188,8 +191,8 @@ void crearParticionFat(){
   	for(int i = 0; i<512; i++){
   		outfile.write((char*)&root, 32);
   	}
-  	
-  	for(int i = 0; i<65468; i++){
+  	//65468
+  	for(int i = 0; i<8; i++){
   		outfile.write((char*)&Data[i].espacio, 4096);
   	}
   
@@ -345,91 +348,181 @@ void CatredireccionamientoRoot(char primera_letra, char *nombre ){ // cREAR UN A
 	char nombre_archivo[10];
 	memcpy (nombre_archivo,nombre,10);
 	char reservado[6];
-	for(int rot =0; rot<512; rot++){ //ahora revisa en la region root
-		if(root[rot].primer_caracter != 0){
-			cout<<"hay algo"<<endl;
-		}else{
-			cout<<"vacio"<<endl;
-			string line;
-			string lineas[255]; //longitud al chilaso
-			cin.ignore();
-			int contador=0;
-			int nbyteslineas=0;
-			int nclusters =0;
-			while(line!="exit\n"){
-  				getline (cin,line);
-  				line += '\n';
-  				lineas[contador] = line;
-  				contador++;
-			}
-			lineas[contador-1] = "final"; /// indicando que es la ultima linea, no la incluye
-			contador=0;
-			while(lineas[contador]!="final" && contador<255){
-				nbyteslineas += lineas[contador].size();
-  				contador++;
-			}
-
-			nclusters = ceil(nbyteslineas/4096);
-			if(nclusters==0)
-				nclusters++;
-			short nclustersencontrados[nclusters];
-			short int cluesterdireccion; // buscar cluster disponible en la fattable
-			bool hayespaciofattable;
-			contador =0;
-			for(int clus=69;clus<65536;clus++){
-				if(fatTable[clus]==0 ){
-					nclustersencontrados[contador] =clus;
-					contador++;
-				}
-				if(contador==nclusters){
-					hayespaciofattable =true;
-					break;
-				}
-
-			}
-			if(hayespaciofattable){
-				cluesterdireccion = nclustersencontrados[0];
-				root[rot].primer_caracter = primera_letra;
-				memcpy (root[rot].nombre_archivo,nombre,10);
-				root[rot].atributos = tipo;
-				memcpy (root[rot].fecha, dt, 8);
-				root[rot].direccion = cluesterdireccion;
-				root[rot].tamano= nbyteslineas;
-				
-				for(int asig =0; asig< nclusters-1;asig++){ // lista de los clusters
-					fatTable[nclustersencontrados[asig]] = nclustersencontrados[asig+1];
-				}
-				fatTable[nclustersencontrados[nclusters-1]]=63; // el cluster 63 es parte de la fattable(indica entonces que no apunta a otro cluster)
-
-				if(nbyteslineas>0){
-					char cadenadivida[nbyteslineas];
-					contador=0;
-					for(int l =0; l<sizeof(lineas); l++){ // dividir los bytes de las cadenas y meterlas en un array de chars
-						if(lineas[l]=="final")
-							break;
-						for(int a =0; a<lineas[l].size(); a++){
-							cadenadivida[contador] = lineas[l][a];
-							contador++;
-						}
-					}
-				
-					contador =0;
-					for(int asig =0; asig< nclusters;asig++){ // Ingresar los bytes del archivo... si los hay
-						for(int w=0;w<4096;w++){
-							if((w+contador-1)==nbyteslineas)
-								break;
-							Data[nclustersencontrados[asig]-69].espacio[w] = cadenadivida[w+contador]; //-69 porque Data solo tiene los cluster de data
-						}
-						contador+=4096;
-					}
-				}
-
-
+	if(actualEsRoot){
+		for(int rot =0; rot<512; rot++){ //ahora revisa en la region root
+			if(root[rot].primer_caracter != 0){
+				cout<<"hay algo"<<endl;
 			}else{
-				cout<<"El disco esta lleno"<<endl;
+				cout<<"vacio"<<endl;
+				string line;
+				string lineas[255]; //longitud al chilaso
+				cin.ignore();
+				int contador=0;
+				int nbyteslineas=0;
+				int nclusters =0;
+				while(line!="exit\n"){
+	  				getline (cin,line);
+	  				line += '\n';
+	  				lineas[contador] = line;
+	  				contador++;
+				}
+				lineas[contador-1] = "final"; /// indicando que es la ultima linea, no la incluye
+				contador=0;
+				while(lineas[contador]!="final" && contador<255){
+					nbyteslineas += lineas[contador].size();
+	  				contador++;
+				}
+
+				nclusters = ceil(nbyteslineas/4096);
+				if(nclusters==0)
+					nclusters++;
+				short nclustersencontrados[nclusters];
+				short int cluesterdireccion; // buscar cluster disponible en la fattable
+				bool hayespaciofattable;
+				contador =0;
+				for(int clus=69;clus<65536;clus++){
+					if(fatTable[clus]==0 ){
+						nclustersencontrados[contador] =clus;
+						contador++;
+					}
+					if(contador==nclusters){
+						hayespaciofattable =true;
+						break;
+					}
+
+				}
+				if(hayespaciofattable){
+					cluesterdireccion = nclustersencontrados[0];
+					root[rot].primer_caracter = primera_letra;
+					memcpy (root[rot].nombre_archivo,nombre,10);
+					root[rot].atributos = tipo;
+					memcpy (root[rot].fecha, dt, 8);
+					root[rot].direccion = cluesterdireccion;
+					root[rot].tamano= nbyteslineas;
+					
+					for(int asig =0; asig< nclusters-1;asig++){ // lista de los clusters
+						fatTable[nclustersencontrados[asig]] = nclustersencontrados[asig+1];
+					}
+					fatTable[nclustersencontrados[nclusters-1]]=63; // el cluster 63 es parte de la fattable(indica entonces que no apunta a otro cluster)
+
+					if(nbyteslineas>0){
+						char cadenadivida[nbyteslineas];
+						contador=0;
+						for(int l =0; l<sizeof(lineas); l++){ // dividir los bytes de las cadenas y meterlas en un array de chars
+							if(lineas[l]=="final")
+								break;
+							for(int a =0; a<lineas[l].size(); a++){
+								cadenadivida[contador] = lineas[l][a];
+								contador++;
+							}
+						}
+					
+						contador =0;
+						for(int asig =0; asig< nclusters;asig++){ // Ingresar los bytes del archivo... si los hay
+							for(int w=0;w<4096;w++){
+								if((w+contador-1)==nbyteslineas)
+									break;
+								Data[nclustersencontrados[asig]-69].espacio[w] = cadenadivida[w+contador]; //-69 porque Data solo tiene los cluster de data
+							}
+							contador+=4096;
+						}
+					}
+
+
+				}else{
+					cout<<"El disco esta lleno"<<endl;
+				}
+				
+				break;
 			}
-			
-			break;
+		}
+	}else{
+		for(int sub =0; sub<128; sub++){ 
+			if(Data[clusterDirectorioActual-69].espacio[(sub*32)]!= 0){
+				cout<<"hay algo"<<endl;
+			}else{
+				cout<<"vacio"<<endl;
+				string line;
+				string lineas[255]; //longitud al chilaso
+				cin.ignore();
+				int contador=0;
+				int nbyteslineas=0;
+				int nclusters =0;
+				while(line!="exit\n"){
+	  				getline (cin,line);
+	  				line += '\n';
+	  				lineas[contador] = line;
+	  				contador++;
+				}
+				lineas[contador-1] = "final"; /// indicando que es la ultima linea, no la incluye
+				contador=0;
+				while(lineas[contador]!="final" && contador<255){
+					nbyteslineas += lineas[contador].size();
+	  				contador++;
+				}
+
+				nclusters = ceil(nbyteslineas/4096);
+				if(nclusters==0)
+					nclusters++;
+				short nclustersencontrados[nclusters];
+				short int cluesterdireccion; // buscar cluster disponible en la fattable
+				bool hayespaciofattable;
+				contador =0;
+				for(int clus=69;clus<65536;clus++){
+					if(fatTable[clus]==0 ){
+						nclustersencontrados[contador] =clus;
+						contador++;
+					}
+					if(contador==nclusters){
+						hayespaciofattable =true;
+						break;
+					}
+
+				}
+				if(hayespaciofattable){
+					cluesterdireccion = nclustersencontrados[0];
+					Data[clusterDirectorioActual-69].espacio[(sub*32)] = primera_letra;
+					memcpy (&Data[clusterDirectorioActual-69].espacio[(sub*32)+1],nombre,10);
+					Data[clusterDirectorioActual-69].espacio[(sub*32)+11]= tipo;
+					memcpy (&Data[clusterDirectorioActual-69].espacio[(sub*32)+12], dt, 8);
+					Data[clusterDirectorioActual-69].espacio[(sub*32)+20]= cluesterdireccion;
+					Data[clusterDirectorioActual-69].espacio[(sub*32)+22]= nbyteslineas;
+					
+					for(int asig =0; asig< nclusters-1;asig++){ // lista de los clusters
+						fatTable[nclustersencontrados[asig]] = nclustersencontrados[asig+1];
+					}
+					fatTable[nclustersencontrados[nclusters-1]]=63; // el cluster 63 es parte de la fattable(indica entonces que no apunta a otro cluster)
+
+					if(nbyteslineas>0){
+						char cadenadivida[nbyteslineas];
+						contador=0;
+						for(int l =0; l<sizeof(lineas); l++){ // dividir los bytes de las cadenas y meterlas en un array de chars
+							if(lineas[l]=="final")
+								break;
+							for(int a =0; a<lineas[l].size(); a++){
+								cadenadivida[contador] = lineas[l][a];
+								contador++;
+							}
+						}
+					
+						contador =0;
+						for(int asig =0; asig< nclusters;asig++){ // Ingresar los bytes del archivo... si los hay
+							for(int w=0;w<4096;w++){
+								if((w+contador-1)==nbyteslineas)
+									break;
+								Data[nclustersencontrados[asig]-69].espacio[w] = cadenadivida[w+contador]; //-69 porque Data solo tiene los cluster de data
+							}
+							contador+=4096;
+						}
+					}
+
+
+				}else{
+					cout<<"El disco esta lleno"<<endl;
+				}
+				
+				break;
+			}
 		}
 	}
 }
@@ -452,7 +545,7 @@ void getInfoFile(){
   		infile.read((char*)&root[i], 32);
   	}
   
-  	for(int i = 0; i<65468; i++){
+  	for(int i = 0; i<8; i++){
   		infile.read((char*)&Data[i], 4096);
   	}
   	
@@ -470,7 +563,7 @@ void escribirFatFile(){
   		outfile.write((char*)&root[i], 32);
   	}
   	
-  	for(int i = 0; i<65468; i++){
+  	for(int i = 0; i<8; i++){
   		outfile.write((char*)&Data[i], 4096);
   	}
   	
