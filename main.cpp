@@ -100,28 +100,56 @@ int main(){
 
 void CatRoot(char * nombre){
 	bool seencuentra = false;
-	for(int rot =0; rot<512; rot++){
-		 if(root[rot].primer_caracter!=0 && root[rot].atributos=='a'){
-		 	if(strcmp(root[rot].nombre_archivo, nombre)==0){
-		 		int nclusters = ceil(root[rot].tamano/4096);
-		 		string line ="";
-				if(nclusters==0)
-					nclusters++;
-		 		int contador=0;
-		 		for(int clus=0 ;clus<nclusters;clus++){
-					
-					for(int a=0 ;a<4096;a++){
-						if(Data[root[rot].direccion-69].espacio[a]!=NULL)
-							line+= Data[root[rot].direccion-69].espacio[a];
+	if(actualEsRoot){
+		for(int rot =0; rot<512; rot++){
+			 if(root[rot].primer_caracter!=0 && root[rot].atributos=='a'){
+			 	if(strcmp(root[rot].nombre_archivo, nombre)==0){
+			 		int nclusters = ceil(root[rot].tamano/4096);
+			 		string line ="";
+					if(nclusters==0)
+						nclusters++;
+			 		int contador=0;
+			 		for(int clus=0 ;clus<nclusters;clus++){
+						
+						for(int a=0 ;a<4096;a++){
+							if(Data[root[rot].direccion-69].espacio[a]!=NULL)
+								line+= Data[root[rot].direccion-69].espacio[a];
+						}
 					}
-				}
-				cout<<line<<endl;
+					cout<<line<<endl;
 
+				}
+			 		if(seencuentra = true);
+			 			break;
 			}
-		 		if(seencuentra = true);
-		 			break;
+			
 		}
-		
+	}else{
+		/*
+		for(int i =0; i<128; i++){
+			 if(root[rot].primer_caracter!=0 && root[rot].atributos=='a'){
+			 	if(strcmp(Data[clusterDirectorioActual-69].nombre_archivo, nombre)==0){
+			 		int nclusters = ceil(root[rot].tamano/4096);
+			 		string line ="";
+					if(nclusters==0)
+						nclusters++;
+			 		int contador=0;
+			 		for(int clus=0 ;clus<nclusters;clus++){
+						
+						for(int a=0 ;a<4096;a++){
+							if(Data[root[rot].direccion-69].espacio[a]!=NULL)
+								line+= Data[root[rot].direccion-69].espacio[a];
+						}
+					}
+					cout<<line<<endl;
+
+				}
+			 		if(seencuentra = true);
+			 			break;
+			}
+			
+		}
+		*/
 	}
 	if(!seencuentra){
 		cout<<"El archivo no existe"<<endl;
@@ -139,11 +167,11 @@ void ls(){
 		}
 	}else{
 		for(int i =0;i<128*32; i+=32){
-		if(Data[clusterDirectorioActual].espacio[i] != 0){
+		if(Data[clusterDirectorioActual-69].espacio[i] != 0){
 			cout<<"Nombre: ";
 			for(int j = 1; j<11;j++)
-				cout<<Data[clusterDirectorioActual].espacio[i+j];			
-			cout<<" Tipo: "<<Data[clusterDirectorioActual].espacio[i+11];
+				cout<<Data[clusterDirectorioActual-69].espacio[i+j];			
+			cout<<" Tipo: "<<Data[clusterDirectorioActual-69].espacio[i+11];
 			cout<<endl;
 		}
 		}
@@ -216,7 +244,7 @@ void crearDirectorio(char primera_letra, char *nombre ){ // CREAR DIRECTORIO
 		memcpy (nombre_archivo,nombre,10);
 		char reservado[6];
 		for(int i=0;i<128*32; i+=32){
-			if(Data[clusterDirectorioActual].espacio[i] != 0){
+			if(Data[clusterDirectorioActual-69].espacio[i] != 0){
 				cout<<"hay algo"<<endl;
 			}else{
 				cout<<"vacio"<<endl;
@@ -232,20 +260,21 @@ void crearDirectorio(char primera_letra, char *nombre ){ // CREAR DIRECTORIO
 				}
 				if(hayespaciofattable){
 
-					Data[clusterDirectorioActual].espacio[i] = primera_letra;
+
+					Data[clusterDirectorioActual-69].espacio[i] = primera_letra;
 					for(int j =0;j<10;j++){
-						Data[clusterDirectorioActual].espacio[i+j+1] = nombre[j];
+						Data[clusterDirectorioActual-69].espacio[i+j+1] = nombre[j];
 					}				
-					Data[clusterDirectorioActual].espacio[i+11] = tipo;
+					Data[clusterDirectorioActual-69].espacio[i+11] = tipo;
 					for(int j=0;j<8;j++){
-						Data[clusterDirectorioActual].espacio[i+12+j] = fecha[j];
+						Data[clusterDirectorioActual-69].espacio[i+12+j] = fecha[j];
 					}
 					char direccionTemp[2];
 	    			*((unsigned short int *) direccionTemp) = cluesterdireccion;
 					/*char* direccionTemp = (char*)cluesterdireccion;
 					//memcpy (direccionTemp, (char*)cluesterdireccion, 2);*/
 					for(int j =0;j<2;j++){
-						Data[clusterDirectorioActual].espacio[i+20+j] = direccionTemp[j];
+						Data[clusterDirectorioActual-69].espacio[i+20+j] = direccionTemp[j];
 					}
 					char tamanoTemp[4];
 	    			*((int *) tamanoTemp) = 4096;
@@ -254,7 +283,7 @@ void crearDirectorio(char primera_letra, char *nombre ){ // CREAR DIRECTORIO
 					tamanoTemp = (char*)tamano;
 					//memcpy (tamanoTemp, (char*)tamano, 4);*/
 					for(int j =0;j<4;j++){
-						Data[clusterDirectorioActual].espacio[i+22+j] = tamanoTemp[j];
+						Data[clusterDirectorioActual-69].espacio[i+22+j] = tamanoTemp[j];
 					}
 				}else{
 					cout<<"El disco esta lleno"<<endl;
@@ -280,16 +309,16 @@ void cambiarDirectorio(char * nombre){
 		}
 	}else{
 		for(int i =0;i<128*32; i+=32){
-			if(Data[clusterDirectorioActual].espacio[i] != 0){
+			if(Data[clusterDirectorioActual-69].espacio[i] != 0){
 				char name[10];
 				for(int j=0;j<10;j++){
-					name[j] = Data[clusterDirectorioActual].espacio[i+j+1];
+					name[j] = Data[clusterDirectorioActual-69].espacio[i+j+1];
 				}
 				//memcpy(name,(char*)Data[clusterDirectorioActual].espacio[i+1],10);
 				if(strcmp(name,nombre)==0){
 					char direccionTemp[2];
 					for(int j =0;j<2;j++){
-						direccionTemp[j] = Data[clusterDirectorioActual].espacio[i+j+20];
+						direccionTemp[j] = Data[clusterDirectorioActual-69].espacio[i+j+20];
 					}
 					//memcpy(direccionTemp,(char*)Data[clusterDirectorioActual].espacio[i+20],2);
 					direccionAsignada = (int)*direccionTemp;
