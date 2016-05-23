@@ -48,81 +48,101 @@ void cambiarDirectorio(char*);
 void rm(char* );
 void rmdir(char* );
 
+char* splitLinea(char * line){
+	char * tokens = strtok (line," ");
+	return tokens;
+}
+
 int main(){
 	rutaActual.push_back("root");
 	ClusterActual.push_back(65467);
+	cout<<"Introducir 'formatear' para formatear el disco"<<endl;
+	cout<<"Introducir 'usar' para usar disco actual"<<endl;
 	while(true){
-		cout<<endl<<"1) Formatear particion"<<endl;
-		cout<<"2) Usar particion existente ---USAR ESTA PARA LEVANTAR ESTRUCTURA EXISTENTE---"<<endl;
-		cout<<"3) mkdir"<<endl;
-		cout<<"4) Cat > file   (ingrese exit para terminar de escribir)"<<endl;
-		cout<<"5) ls"<<endl;
-		cout<<"6) cat "<<endl;
-		cout<<"7) cd"<<endl;
-		cout<<"8) ls -l"<<endl;
-		cout<<"9) rm"<<endl;
-		cout<<"10)rmdir"<<endl;
-		cout<<"11)Exit"<<endl;
+		cout<<"Mi_sh>";
 		for(int o=0;o<rutaActual.size();o++){
 			cout<<"/"<<rutaActual[o];
 		}
-		cout<<"$"<<endl;
-		int opcion;
-		cout<<"Opcion: "; 
-		cin>>opcion;
-		if(opcion==11){
+		cout<<"$ ";
+		char line[255];
+		cin.getline(line,255);
+		char * tokens = splitLinea(line);
+		char cmd[10];
+		char nombre[10];
+			nombre[0]=0;
+		char extra[10];
+			extra[0]=0;
+		int cont = 0;
+		while (tokens != NULL) {
+			if(cont==0){
+				memcpy (cmd, tokens,10);
+			}else if(cont==1){
+				memcpy (nombre, tokens,10);
+			}else if(cont==2){
+				memcpy (extra, tokens,10);
+			}
+			cont++;
+			tokens = strtok (NULL, " ");
+		}
+
+		if(strcmp(cmd, "formatear")==0){
+			crearParticionFat();
+		}else if(strcmp(cmd, "usar")==0){
+			getInfoFile(); // copia la informacion del archivo binario en las diferentes estructuras.
+		}else if(strcmp(cmd, "mkdir")==0){
+			if(nombre[0]==0){
+				cout<<"sin nombre"<<endl;
+			}else{
+				crearDirectorio(nombre[0],nombre);
+			}
+			
+		}else if(strcmp(cmd, "cat")==0){
+			if(nombre[0]=='>'){
+				if(extra[0]==0){
+					cout<<"sin nombre"<<endl;
+				}else{
+					Catredireccionamiento(extra[0], extra);
+				}
+			}else if(nombre[0]==0){
+				cout<<"Sin nombre"<<endl;
+			}else{
+				Cat(nombre);
+			}
+		}else if(strcmp(cmd, "ls")==0){
+			if(nombre[0]=='-' && nombre[1]=='l'){
+				if(extra[0]!=0){
+					cout<<"Comando incorrecto"<<endl;
+				}else{
+					ls_l();
+				}
+			}else if(nombre[0]==0){
+				ls();
+			}
+		}else if(strcmp(cmd, "cd")==0){
+			if(nombre[0]==0){
+				cout<<"sin nombre"<<endl;
+			}else{
+				cambiarDirectorio(nombre);
+			}
+		}else if(strcmp(cmd, "rm")==0){
+			if(nombre[0]==0){
+				cout<<"sin nombre"<<endl;
+			}else{
+				rm(nombre);
+			}
+		}else if(strcmp(cmd, "rmdir")==0){
+			if(nombre[0]==0){
+				cout<<"sin nombre"<<endl;
+			}else{
+				rmdir(nombre);
+			}
+		}else if(strcmp(cmd, "exit")==0){
 			escribirFatFile();
 			break;
 		}
-		char nombre[10];
-		switch(opcion){
-			case 1:
-				crearParticionFat();
-				break;
-			case 2:
-				getInfoFile(); // copia la informacion del archivo binario en las diferentes estructuras.
-				break;
-			case 3:						
-				cout<<"nombre carpeta: ";
-				cin>>nombre;
-				crearDirectorio(nombre[0],nombre);
-				break;
-			case 4:
-				cout<<"nombre archivo: ";
-				cin>>nombre;
-				Catredireccionamiento(nombre[0], nombre);
-				break;
-			case 5:
-				ls();
-				break;
-			case 6:
-				cout<<"nombre archivo: ";
-				cin>>nombre;
-				Cat(nombre);
-				break;
-			case 7:
-				cout<<"nombre subdirectorio: ";
-				cin>>nombre;
-				cambiarDirectorio(nombre);
-				break;
-			case 8:
-				ls_l();
-				break;	
-			case 9:
-				cout<<"nombre archivo: ";
-				cin>>nombre;
-				rm(nombre);
-				break;
-			case 10:
-				cout<<"nombre carpeta: ";
-				cin>>nombre;
-				rmdir(nombre);
-				break;
-			default:
-				break;
-		}
-		for(int i=0;i<10;i++)
-			nombre[i] = '\0';
+
+		
+		
 	}
 	return 0;
 }
@@ -141,7 +161,7 @@ void Cat(char * nombre){
 			 		for(int clus=0 ;clus<nclusters;clus++){
 						
 						for(int a=0 ;a<4096;a++){
-							if(Data[root[rot].direccion-69].espacio[a]!='0'){
+							if(Data[root[rot].direccion-69].espacio[a]!='^'){
 
 								line+= Data[root[rot].direccion-69].espacio[a];
 							}else{
@@ -173,7 +193,7 @@ void Cat(char * nombre){
 			 		for(int clus=0 ;clus<nclusters;clus++){
 						
 						for(int a=0 ;a<4096;a++){
-							if(Data[Data[clusterDirectorioActual-69].espacio[(i*32)+20]-69].espacio[a]!='0'){
+							if(Data[Data[clusterDirectorioActual-69].espacio[(i*32)+20]-69].espacio[a]!='^'){
 
 								line+= Data[Data[clusterDirectorioActual-69].espacio[(i*32)+20]-69].espacio[a];
 							}else{
@@ -197,10 +217,12 @@ void Cat(char * nombre){
 }
 
 void ls(){
+	int contar = 0;
 	if(actualEsRoot){
 		for(int rot =0; rot<512; rot++){
 			 if(root[rot].primer_caracter!=0){
 			 	printf(" %s\t",root[rot].nombre_archivo);
+			 	contar++;
 			 }
 		}
 	}else{
@@ -209,10 +231,12 @@ void ls(){
 				char nom[10];
 				memcpy (nom , &Data[clusterDirectorioActual-69].espacio[(i*32)+1],10);
 				printf(" %s\t",nom);
+				contar++;
 			}
 		}
 	}
-	cout<<endl;
+	if(contar>0)
+		cout<<endl;
 }
 
 void ls_l(){
@@ -464,10 +488,10 @@ void Catredireccionamiento(char primera_letra, char *nombre ){ // cREAR UN ARCHI
 					for(int h= 0;h<contador-2;h++){
 						lineas[h]+= "\n";
 					}
-					lineas[contador-1] = "0"; 
+					lineas[contador-1] = "^"; 
 					lineas[contador] = "final"; /// indicando que es la ultima linea, no la incluye
 					contador=0;
-					while(lineas[contador]!="final" && contador<255){
+					while(lineas[contador]!="final" && contador<2000){
 						nbyteslineas += lineas[contador].size();
 		  				contador++;
 					}
@@ -572,7 +596,7 @@ void Catredireccionamiento(char primera_letra, char *nombre ){ // cREAR UN ARCHI
 					for(int h= 0;h<contador-2;h++){
 						lineas[h]+= "\n";
 					}
-					lineas[contador-1] = '0'; 
+					lineas[contador-1] = '^'; 
 					lineas[contador] = "final"; /// indicando que es la ultima linea, no la incluye
 					contador=0;
 					while(lineas[contador]!="final" && contador<255){
