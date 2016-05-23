@@ -85,6 +85,8 @@ int main(){
 			tokens = strtok (NULL, " ");
 		}
 
+
+
 		if(strcmp(cmd, "formatear")==0){
 			crearParticionFat();
 		}else if(strcmp(cmd, "usar")==0){
@@ -141,6 +143,12 @@ int main(){
 			break;
 		}
 
+		for(int i=0;i<10;i++){
+			nombre[i] = '\0';
+			cmd[i] = '\0';
+			extra[i] = '\0';
+		}
+
 		
 		
 	}
@@ -153,6 +161,7 @@ void Cat(char * nombre){
 		for(int rot =0; rot<512; rot++){
 			 if(root[rot].primer_caracter!=0 && root[rot].atributos=='a'){
 			 	if(strcmp(root[rot].nombre_archivo, nombre)==0){
+			 		//seencuentra= true;
 			 		int nclusters = ceil(root[rot].tamano/4096);
 			 		string line ="";
 					if(nclusters==0)
@@ -162,7 +171,6 @@ void Cat(char * nombre){
 						
 						for(int a=0 ;a<4096;a++){
 							if(Data[root[rot].direccion-69].espacio[a]!='^'){
-
 								line+= Data[root[rot].direccion-69].espacio[a];
 							}else{
 								break;
@@ -172,8 +180,8 @@ void Cat(char * nombre){
 					cout<<line<<endl;
 
 				}
-			 		if(seencuentra = true);
-			 			break;
+			 		if(seencuentra == true);
+			 			//break;
 			}
 			
 		}
@@ -204,8 +212,8 @@ void Cat(char * nombre){
 					cout<<line<<endl;
 
 				}
-			 		if(seencuentra = true);
-			 			break;
+			 		if(seencuentra == true);
+			 			//break;
 			}
 			
 		}
