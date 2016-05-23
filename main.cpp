@@ -31,13 +31,13 @@ Directory root[512];
 Cluster Data[65468];
 
 void crearDirectorio(char, char*);
-void CatredireccionamientoRoot(char, char*);
+void Catredireccionamiento(char, char*);
 void Cat(char *);
 void crearParticionFat();
 void ls();
 void escribirFatFile();
 void getInfoFile();
-
+void ls_l();
 void cambiarDirectorio(char*);
 
 int main(){
@@ -49,12 +49,13 @@ int main(){
 		cout<<"4) Cat > file en root  (ingrese exit para terminar de escribir)"<<endl;
 		cout<<"5) ls"<<endl;
 		cout<<"6) cat en root"<<endl;
-		cout<<"7) Exit"<<endl;
-		cout<<"8) cd"<<endl;
+		cout<<"7) cd"<<endl;
+		cout<<"8) ls -l"<<endl;
+		cout<<"9) Exit"<<endl;
 		int opcion;
 		cout<<"Opcion: "; 
 		cin>>opcion;
-		if(opcion==7){
+		if(opcion==9){
 			escribirFatFile();
 			break;
 		}
@@ -74,7 +75,7 @@ int main(){
 			case 4:
 				cout<<"nombre archivo: ";
 				cin>>nombre;
-				CatredireccionamientoRoot(nombre[0], nombre);
+				Catredireccionamiento(nombre[0], nombre);
 				break;
 			case 5:
 				ls();
@@ -84,11 +85,14 @@ int main(){
 				cin>>nombre;
 				Cat(nombre);
 				break;
-			case 8:
+			case 7:
 				cout<<"nombre subdirectorio: ";
 				cin>>nombre;
 				cambiarDirectorio(nombre);
 				break;
+			case 8:
+				ls_l();
+				break;	
 			default:
 				break;
 		}
@@ -163,20 +167,43 @@ void ls(){
 	if(actualEsRoot){
 		for(int rot =0; rot<512; rot++){
 			 if(root[rot].primer_caracter!=0){
-			 	cout<<"Nombre: "<<root[rot].nombre_archivo;
-			 	cout<<" ";
-			 	cout<<"Tipo: "<<root[rot].atributos<<endl;
+			 	printf(" %s\t",root[rot].nombre_archivo);
 			 }
 		}
 	}else{
-		for(int i =0;i<128*32; i+=32){
-		if(Data[clusterDirectorioActual-69].espacio[i] != 0){
-			cout<<"Nombre: ";
-			for(int j = 1; j<11;j++)
-				cout<<Data[clusterDirectorioActual-69].espacio[i+j];			
-			cout<<" Tipo: "<<Data[clusterDirectorioActual-69].espacio[i+11];
-			cout<<endl;
+		for(int i =0;i<128; i++){
+			if(Data[clusterDirectorioActual-69].espacio[i*32] != 0){
+				char nom[10];
+				memcpy (nom , &Data[clusterDirectorioActual-69].espacio[(i*32)+1],10);
+				printf(" %s\t",nom);
+			}
 		}
+	}
+	cout<<endl;
+}
+
+void ls_l(){
+	if(actualEsRoot){
+		for(int rot =0; rot<512; rot++){
+			 if(root[rot].primer_caracter!=0){
+				cout<<root[rot].nombre_archivo<<"\t"<< root[rot].atributos<<"\t"<<root[rot].tamano<<"\t"<<root[rot].fecha<<endl;
+     
+			 }
+		}
+	}else{
+		for(int i =0;i<128; i++){
+			if(Data[clusterDirectorioActual-69].espacio[i*32] != 0){
+				char nom[10];
+				char fecha[9];
+				memcpy (nom , &Data[clusterDirectorioActual-69].espacio[(i*32)+1],10);
+				memcpy (fecha, &Data[clusterDirectorioActual-69].espacio[(i*32)+12], 9);
+				int tamano = int(Data[clusterDirectorioActual-69].espacio[(i*32)+22]+Data[clusterDirectorioActual-69].espacio[(i*32)+23]
+								+Data[clusterDirectorioActual-69].espacio[(i*32)+24]+Data[clusterDirectorioActual-69].espacio[(i*32)+25]);
+				cout<<nom<<"\t"<< Data[clusterDirectorioActual-69].espacio[(i*32)+11]<<'\t'<<tamano<<"\t";
+				for (int j=0;j<9;j++)
+					cout<<fecha[j];
+				cout<<endl;
+			}
 		}
 	}
 }
@@ -192,7 +219,7 @@ void crearParticionFat(){
   		outfile.write((char*)&root, 32);
   	}
   	//65468
-  	for(int i = 0; i<8; i++){
+  	for(int i = 0; i<65468; i++){
   		outfile.write((char*)&Data[i].espacio, 4096);
   	}
   
@@ -300,46 +327,52 @@ void crearDirectorio(char primera_letra, char *nombre ){ // CREAR DIRECTORIO
 
 void cambiarDirectorio(char * nombre){
 	int direccionAsignada = -1;
-	if(clusterDirectorioActual == 65467){//se encuentra en la root		
-		for(int rot =0; rot<512; rot++){
-		 if(root[rot].primer_caracter!=0){
-		 	char* name = root[rot].nombre_archivo;
-		 	if(strcmp(nombre,name)==0){
-		 		direccionAsignada = root[rot].direccion;
-		 		break;
-		 	}
-		 }
-		}
+	if(strcmp(nombre, "..")==0){
+		actualEsRoot = true;
+		clusterDirectorioActual = 65467;
 	}else{
-		for(int i =0;i<128*32; i+=32){
-			if(Data[clusterDirectorioActual-69].espacio[i] != 0){
-				char name[10];
-				for(int j=0;j<10;j++){
-					name[j] = Data[clusterDirectorioActual-69].espacio[i+j+1];
-				}
-				//memcpy(name,(char*)Data[clusterDirectorioActual].espacio[i+1],10);
-				if(strcmp(name,nombre)==0){
-					char direccionTemp[2];
-					for(int j =0;j<2;j++){
-						direccionTemp[j] = Data[clusterDirectorioActual-69].espacio[i+j+20];
+		if(clusterDirectorioActual == 65467){//se encuentra en la root		
+			for(int rot =0; rot<512; rot++){
+			 if(root[rot].primer_caracter!=0){
+			 	char* name = root[rot].nombre_archivo;
+			 	if(strcmp(nombre,name)==0){
+			 		direccionAsignada = root[rot].direccion;
+			 		break;
+			 	}
+			 }
+			}
+		}else{
+			for(int i =0;i<128*32; i+=32){
+				if(Data[clusterDirectorioActual-69].espacio[i] != 0){
+					char name[10];
+					for(int j=0;j<10;j++){
+						name[j] = Data[clusterDirectorioActual-69].espacio[i+j+1];
 					}
-					//memcpy(direccionTemp,(char*)Data[clusterDirectorioActual].espacio[i+20],2);
-					direccionAsignada = (int)*direccionTemp;
-		 			break;
+					//memcpy(name,(char*)Data[clusterDirectorioActual].espacio[i+1],10);
+					if(strcmp(name,nombre)==0){
+						char direccionTemp[2];
+						for(int j =0;j<2;j++){
+							direccionTemp[j] = Data[clusterDirectorioActual-69].espacio[i+j+20];
+						}
+						//memcpy(direccionTemp,(char*)Data[clusterDirectorioActual].espacio[i+20],2);
+						direccionAsignada = (int)*direccionTemp;
+			 			break;
+					}
 				}
 			}
 		}
-	}
-	if(direccionAsignada != -1){
+		if(direccionAsignada != -1){
 			clusterDirectorioActual = direccionAsignada;
 			actualEsRoot = false;
-	}else
-		cout<<"No existe esa subcarpeta"<<endl;
-	//cout<<"direccion actual: "<<clusterDirectorioActual<<endl;
+		}else
+			cout<<"No existe esa subcarpeta"<<endl;
+		//cout<<"direccion actual: "<<clusterDirectorioActual<<endl;
+	}
+	
 }
 
 
-void CatredireccionamientoRoot(char primera_letra, char *nombre ){ // cREAR UN ARCHIVOO
+void Catredireccionamiento(char primera_letra, char *nombre ){ // cREAR UN ARCHIVOO
 	char tipo = 'a';
 	time_t now = time(0);
 	char* dt = ctime(&now);
@@ -545,7 +578,7 @@ void getInfoFile(){
   		infile.read((char*)&root[i], 32);
   	}
   
-  	for(int i = 0; i<8; i++){
+  	for(int i = 0; i<65468; i++){
   		infile.read((char*)&Data[i], 4096);
   	}
   	
@@ -563,7 +596,7 @@ void escribirFatFile(){
   		outfile.write((char*)&root[i], 32);
   	}
   	
-  	for(int i = 0; i<8; i++){
+  	for(int i = 0; i<65468; i++){
   		outfile.write((char*)&Data[i], 4096);
   	}
   	
